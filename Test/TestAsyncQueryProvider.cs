@@ -35,11 +35,6 @@ namespace AsyncQueryProviderDemo.UnitTests
             return this.innerQueryProvider.Execute<TResult>(expression);
         }
 
-        public object ExecuteAsync(Expression expression, CancellationToken cancellationToken)
-        {
-            return this.Execute(expression);
-        }
-
         public TResult ExecuteAsync<TResult>(Expression expression, CancellationToken cancellationToken = new CancellationToken())
         {
             var expectedResultType = typeof(TResult).GetGenericArguments()[0];

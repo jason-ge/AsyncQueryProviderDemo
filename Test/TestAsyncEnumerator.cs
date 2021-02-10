@@ -4,7 +4,7 @@ namespace AsyncQueryProviderDemo.UnitTests
     using System.Collections.Generic;
     using System.Threading.Tasks;
 
-    internal class TestAsyncEnumerator<T> : IAsyncEnumerator<T>, IDisposable
+    internal class TestAsyncEnumerator<T> : IAsyncEnumerator<T>
     {
         private readonly IEnumerator<T> enumerator;
 
@@ -14,11 +14,6 @@ namespace AsyncQueryProviderDemo.UnitTests
         }
 
         public T Current => this.enumerator.Current;
-
-        public void Dispose()
-        {
-            this.enumerator.Dispose();
-        }
 
         public ValueTask DisposeAsync()
         {

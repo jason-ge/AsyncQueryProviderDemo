@@ -17,9 +17,6 @@ namespace AsyncQueryProviderDemo.UnitTests
 
         IQueryProvider IQueryable.Provider => new TestAsyncQueryProvider<T>(this);
 
-        public IAsyncEnumerator<T> GetEnumerator() =>
-            new TestAsyncEnumerator<T>(this.AsEnumerable().GetEnumerator());
-
         public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken token)
         {
             return new TestAsyncEnumerator<T>(this.AsEnumerable().GetEnumerator());
