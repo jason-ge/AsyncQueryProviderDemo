@@ -19,16 +19,26 @@ namespace AsyncQueryProviderDemo.Services
 
         public async Task<UserSettingModel> AddUserSettingAsync(UserSettingModel userSetting)
         {
-            UserSetting setting = new UserSetting() { 
-                UserId = userSetting.UserId,
-                SettingKey = userSetting.SettingKey,
-                SettingValue = userSetting.SettingValue,
-            };
-            await _context.UserSettings.AddAsync(setting).ConfigureAwait(false);
-            await _context.SaveChangesAsync().ConfigureAwait(false);
+            UserSetting setting = await _context.UserSettings.FirstOrDefaultAsync(s => s.UserId == userSetting.UserId && s.SettingKey == userSetting.SettingKey).ConfigureAwait(false);
+            
+            if (setting == null)
+            {
+                setting = new UserSetting()
+                {
+                    UserId = userSetting.UserId,
+                    SettingKey = userSetting.SettingKey,
+                    SettingValue = userSetting.SettingValue,
+                };
+                await _context.UserSettings.AddAsync(setting).ConfigureAwait(false);
+                await _context.SaveChangesAsync().ConfigureAwait(false);
 
-            userSetting.UserSettingId = setting.UserSettingId;
-            return userSetting;
+                userSetting.UserSettingId = setting.UserSettingId;
+                return userSetting;
+            }
+            else
+            {
+                throw new ArgumentException("The user setting with same UserId and SettingKey already exists");
+            } 
         }
 
         public async Task UpdateUserSettingAsync(UserSettingModel setting)
@@ -59,6 +69,25 @@ namespace AsyncQueryProviderDemo.Services
             else
             {
                 throw new ArgumentException($"Cannot find the user setting with id {id}");
+            }
+        }
+
+        public async Task<UserSettingModel> GetUserSettingsByIdAsync(int id)
+        {
+            var setting = await _context.UserSettings.FindAsync(id).ConfigureAwait(false);
+            if (setting != null)
+            {
+                return new UserSettingModel()
+                {
+                    UserId = setting.UserId,
+                    SettingKey = setting.SettingKey,
+                    SettingValue = setting.SettingValue,
+                    UserSettingId = setting.UserSettingId,
+                };
+            }
+            else
+            {
+                return null;
             }
         }
 

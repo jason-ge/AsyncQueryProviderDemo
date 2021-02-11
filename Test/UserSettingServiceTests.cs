@@ -9,6 +9,7 @@ using AsyncQueryProviderDemo.Models;
 using AsyncQueryProviderDemo.Services;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Moq;
 using Xunit;
 
@@ -59,10 +60,14 @@ namespace AsyncQueryProviderDemo.UnitTests
         }
 
         [Fact]
-        public async Task AddUserSettingAsync_Successful()
+        public async Task AddUserSettingAsync()
         {
             var settings = new List<UserSetting>();
             var mockSettings = CreateDbSetMock(settings.AsQueryable());
+            mockSettings.Setup(m => m.AddAsync(It.IsAny<UserSetting>(), default)).Callback<UserSetting, CancellationToken>((s, token) =>
+            {
+                settings.Add(s);
+            });
 
             var mockContext = new Mock<UserSettingContext>();
             mockContext.Setup(m => m.UserSettings).Returns(mockSettings.Object);
@@ -73,6 +78,8 @@ namespace AsyncQueryProviderDemo.UnitTests
 
             Assert.NotNull(result);
             Assert.Equal(this.setting1.SettingKey, result.SettingKey);
+
+            await Assert.ThrowsAsync<ArgumentException>(() => service.AddUserSettingAsync(_mapper.Map<UserSettingModel>(this.setting1)));
         }
 
         [Fact]
@@ -80,6 +87,11 @@ namespace AsyncQueryProviderDemo.UnitTests
         {
             var settings = new List<UserSetting>() { setting1, setting2, setting3 };
             var mockSettings = CreateDbSetMock(settings.AsQueryable());
+            mockSettings.Setup(m => m.Remove(It.IsAny<UserSetting>())).Callback<UserSetting>(s =>
+            {
+                settings.Remove(settings.Find(t => t.UserSettingId == s.UserSettingId));
+            });
+
 
             var mockContext = new Mock<UserSettingContext>();
             mockContext.Setup(m => m.UserSettings).Returns(mockSettings.Object);
@@ -88,7 +100,7 @@ namespace AsyncQueryProviderDemo.UnitTests
 
             await service.DeleteUserSettingAsync(setting1.UserSettingId);
 
-            await Assert.ThrowsAsync<ArgumentException>(() => service.DeleteUserSettingAsync(5));
+            await Assert.ThrowsAsync<ArgumentException>(() => service.DeleteUserSettingAsync(setting1.UserSettingId));
         }
 
         [Fact]
@@ -100,7 +112,6 @@ namespace AsyncQueryProviderDemo.UnitTests
             var mockContext = new Mock<UserSettingContext>();
             mockContext.Setup(m => m.UserSettings).Returns(mockSettings.Object);
 
-            //setting1.SettingValue = "UpdatedValue";
             var service = new UserSettingService(mockContext.Object);
 
             await service.UpdateUserSettingAsync(new UserSettingModel
@@ -121,7 +132,7 @@ namespace AsyncQueryProviderDemo.UnitTests
         }
 
         [Fact]
-        public async Task GetUserSettingsByUserId_Successful()
+        public async Task GetUserSettingsByUserId()
         {
             var settings = new List<UserSetting>() { setting1, setting2, setting3 };
             var mockSettings = CreateDbSetMock(settings.AsQueryable());
@@ -135,6 +146,36 @@ namespace AsyncQueryProviderDemo.UnitTests
 
             Assert.NotNull(result);
             Assert.Equal(2, result.Count());
+
+            result = await service.GetUserSettingsByUserIdAsync("non-existing-user");
+
+            Assert.Empty(result);
+
+        }
+
+        [Fact]
+        public async Task GetUserSettingsById()
+        {
+            var settings = new List<UserSetting>() { setting1, setting2, setting3 };
+            var mockSettings = CreateDbSetMock(settings.AsQueryable());
+            mockSettings.Setup(m => m.FindAsync(It.IsAny<object[]>())).Returns((object[] r) =>
+            {
+                return new ValueTask<UserSetting>(mockSettings.Object.FirstOrDefaultAsync(b => b.UserSettingId == (int)r[0]));
+            });
+
+            var mockContext = new Mock<UserSettingContext>();
+            mockContext.Setup(m => m.UserSettings).Returns(mockSettings.Object);
+
+            var service = new UserSettingService(mockContext.Object);
+
+            var result = await service.GetUserSettingsByIdAsync(this.setting1.UserSettingId);
+
+            Assert.NotNull(result);
+            Assert.Equal(this.setting1.UserSettingId, result.UserSettingId);
+
+            result = await service.GetUserSettingsByIdAsync(1000);
+
+            Assert.Null(result);
         }
 
         private static Mock<DbSet<T>> CreateDbSetMock<T>(IQueryable<T> items) where T : class
